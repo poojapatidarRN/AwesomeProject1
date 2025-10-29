@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import {Keyboard, KeyboardAvoidingView, Platform, ScrollView, Text, TouchableWithoutFeedback, View} from 'react-native';
 import React, {useState} from 'react';
 import {getApp} from '@react-native-firebase/app';
@@ -6,7 +7,7 @@ import {
   createUserWithEmailAndPassword,
 } from '@react-native-firebase/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {BLUE} from '../../constant/Colors';
+import {BLUE, LIGHT_PINK} from '../../constant/Colors';
 import InputBox from '../../component/InputBox/InputBox';
 import ButtonBox from '../../component/ButtonBox/ButtonBox';
 import {EMAIL_REGEX, PASSWORD_REGEX} from '../../Utils/Utils';
@@ -14,6 +15,7 @@ import {styles} from './Styles';
 import {ErrorStateProps, InputStateProps} from './types';
 import { useNavigation,NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../Navigation/stack/types/navigationType'
+import firestore from '@react-native-firebase/firestore';
 
 
 const SignUpScreen = () => {
@@ -89,45 +91,55 @@ const SignUpScreen = () => {
   };
 
   const onSignUpClick = async () => {
-    const {name, email, password} = inputState;
-    validateField('name', name, true);
-    validateField('email', email, true);
-    validateField('password', password, true);
-    if (
-      !name ||
-      !email ||
-      !password ||
-      errorState.nameError ||
-      errorState.emailError ||
-      errorState.passwordError
-    ) {
-      return;
-    }
-      const app = getApp();
-      const auth = getAuth(app);
-      const userCred = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password,
-      ).then(() => {
-    console.log('User account created & signed in!');
-    console.log("user======>",userCred)
-       navigation.navigate("HomeScreen")
+  const { name, email, password } = inputState;
 
-  })
-  .catch(error => {
+  validateField('name', name, true);
+  validateField('email', email, true);
+  validateField('password', password, true);
+
+  if (
+    !name ||
+    !email ||
+    !password ||
+    errorState.nameError ||
+    errorState.emailError ||
+    errorState.passwordError
+  ) {
+    return;
+  }
+
+  try {
+    const app = getApp();
+    const auth = getAuth(app);
+    const userCred = await createUserWithEmailAndPassword(auth, email, password);
+    console.log('User account created & signed in!');
+    console.log('user======>', userCred.user); 
+    await firestore()
+      .collection('users')
+      .doc(userCred.user.uid) // use UID as document ID
+      .set({
+        name,
+        email,
+        password, // ⚠️ Not recommended in real apps — better to omit or hash it
+        createdAt: firestore.FieldValue.serverTimestamp(),
+      });
+
+    console.log('User data stored in Firestore ✅');
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'HomeScreen' }],
+    });
+  } catch (error: any) {
     if (error.code === 'auth/email-already-in-use') {
       console.log('That email address is already in use!');
-    }
-
-    if (error.code === 'auth/invalid-email') {
+    } else if (error.code === 'auth/invalid-email') {
       console.log('That email address is invalid!');
+    } else {
+      console.error('Signup Error:', error);
     }
+  }
+};
 
-    console.error(error);
-  });
-
-  };
 
 
  
@@ -197,17 +209,16 @@ const SignUpScreen = () => {
     );
   };
 
-    const SignUpText=()=>{
+    const SignUpText = () =>{
       return(
         <View>
           <Text style={{textAlign:"center",color:"black",fontWeight:"bold",fontSize:20}}>Signup Here....</Text>
         </View>
       )
     }
-  //-----UI BLOCK-----//
 
   return (
-    <SafeAreaView style={{ flex: 1, }}>
+    <SafeAreaView style={{ flex: 1,backgroundColor:LIGHT_PINK}}>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>

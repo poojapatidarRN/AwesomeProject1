@@ -1,13 +1,12 @@
 import { View,Text, Keyboard, KeyboardAvoidingView, TouchableWithoutFeedback, ScrollView, Platform } from 'react-native'
 import React, { useEffect, useState } from 'react'
-import firestore from '@react-native-firebase/firestore';
 import { ErrorStateProps, InputStateProps } from './types';
 import InputBox from '../../component/InputBox/InputBox';
 import { styles } from './styles';
 import { EMAIL_REGEX, PASSWORD_REGEX } from '../../Utils/Utils';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ButtonBox from '../../component/ButtonBox/ButtonBox';
-import { BLUE } from '../../constant/Colors';
+import { BLUE, LIGHT_PINK } from '../../constant/Colors';
 import { useNavigation,NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../Navigation/stack/types/navigationType'
 import {getAuth, signInWithEmailAndPassword} from '@react-native-firebase/auth';
@@ -15,14 +14,6 @@ import {getApp} from '@react-native-firebase/app';
 
 const LoginScreen= () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  //  useEffect(() => {
-  //   getData();
-  // }, []);
-  // const getData=async()=>{
-  //   const usersData = await firestore().collection('users').get();
-  //   console.log("data===",usersData.docs[0].data())
-
-  // }
 
   const [inputState, setInputState] = useState<InputStateProps>({
     email: '',
@@ -176,7 +167,11 @@ const LoginScreen= () => {
       signInWithEmailAndPassword(auth, email, password)
         .then(async (res) => {
           console.log('resulttttt==>', JSON.stringify(res))
-          navigation.navigate("HomeScreen")
+         // navigation.navigate("HomeScreen")
+         navigation.reset({
+         index: 0,
+         routes: [{ name: 'HomeScreen' }],
+});
                 })
         .catch(err => {console.log('Error', err.message)});
     }
@@ -219,7 +214,7 @@ const LoginScreen= () => {
 
 
   return (
-  <SafeAreaView style={{ flex: 1, }}>
+  <SafeAreaView style={{ flex: 1,backgroundColor:LIGHT_PINK }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>

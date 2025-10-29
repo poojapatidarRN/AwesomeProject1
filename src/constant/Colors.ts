@@ -33,6 +33,8 @@ export const DARK_PURPLE = '#4B0082';
 export const PINK = '#FFC0CB';
 export const HOT_PINK = '#FF69B4';
 export const DEEP_PINK = '#FF1493';
+export const LIGHT_PINK = '#FFD1DF';
+
 
 export const BROWN = '#A52A2A';
 export const BEIGE = '#F5F5DC';
