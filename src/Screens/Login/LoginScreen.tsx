@@ -1,6 +1,6 @@
 import { View,Text, Keyboard, KeyboardAvoidingView, TouchableWithoutFeedback, ScrollView, Platform } from 'react-native'
 import React, { useEffect, useState } from 'react'
-import firestore from '@react-native-firebase/firestore';
+// import firestore from '@react-native-firebase/firestore';
 import { ErrorStateProps, InputStateProps } from './types';
 import InputBox from '../../component/InputBox/InputBox';
 import { styles } from './styles';
@@ -10,8 +10,9 @@ import ButtonBox from '../../component/ButtonBox/ButtonBox';
 import { BLUE } from '../../constant/Colors';
 import { useNavigation,NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../Navigation/stack/types/navigationType'
-import {getAuth, signInWithEmailAndPassword} from '@react-native-firebase/auth';
+// import {getAuth, signInWithEmailAndPassword} from '@react-native-firebase/auth';
 import {getApp} from '@react-native-firebase/app';
+import { supabase } from '../../lib/supabase'
 
 const LoginScreen= () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -157,7 +158,32 @@ const LoginScreen= () => {
       }
     }
   };
-    const onLoginClick= () => {
+  //   const onLoginClick= () => {
+  //   const {email, password} = inputState;
+
+  //   validateField('email', email, true);
+  //   validateField('password', password, true);
+
+  //   if (
+  //     !email ||
+  //     !password ||
+  //     errorState.emailError ||
+  //     errorState.passwordError
+  //   ) {
+  //     return;
+  //   } else {
+  //     const app = getApp();
+  //     const auth = getAuth(app);
+  //     signInWithEmailAndPassword(auth, email, password)
+  //       .then(async (res) => {
+  //         console.log('resulttttt==>', JSON.stringify(res))
+  //         navigation.navigate("HomeScreen")
+  //               })
+  //       .catch(err => {console.log('Error', err.message)});
+  //   }
+  // };
+ 
+     const onLoginClick= async() => {
     const {email, password} = inputState;
 
     validateField('email', email, true);
@@ -171,16 +197,23 @@ const LoginScreen= () => {
     ) {
       return;
     } else {
-      const app = getApp();
-      const auth = getAuth(app);
-      signInWithEmailAndPassword(auth, email, password)
-        .then(async (res) => {
-          console.log('resulttttt==>', JSON.stringify(res))
+      const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    console.log('Signin error:', error.message);
+    return null;
+  }
+
+  console.log('Signin successful:', data.user);
           navigation.navigate("HomeScreen")
-                })
-        .catch(err => {console.log('Error', err.message)});
+
     }
   };
+ 
+ 
   const loginText=()=>{
     return(
       <View>

@@ -14,6 +14,7 @@ import {styles} from './Styles';
 import {ErrorStateProps, InputStateProps} from './types';
 import { useNavigation,NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../Navigation/stack/types/navigationType'
+import { supabase } from '../../lib/supabase'
 
 
 const SignUpScreen = () => {
@@ -88,6 +89,47 @@ const SignUpScreen = () => {
     validateField(field, value, false);
   };
 
+  // const onSignUpClick = async () => {
+  //   const {name, email, password} = inputState;
+  //   validateField('name', name, true);
+  //   validateField('email', email, true);
+  //   validateField('password', password, true);
+  //   if (
+  //     !name ||
+  //     !email ||
+  //     !password ||
+  //     errorState.nameError ||
+  //     errorState.emailError ||
+  //     errorState.passwordError
+  //   ) {
+  //     return;
+  //   }
+  //     const app = getApp();
+  //     const auth = getAuth(app);
+  //     const userCred = await createUserWithEmailAndPassword(
+  //       auth,
+  //       email,
+  //       password,
+  //     ).then(() => {
+  //   console.log('User account created & signed in!');
+  //   console.log("user======>",userCred)
+  //      navigation.navigate("HomeScreen")
+
+  // })
+  // .catch(error => {
+  //   if (error.code === 'auth/email-already-in-use') {
+  //     console.log('That email address is already in use!');
+  //   }
+
+  //   if (error.code === 'auth/invalid-email') {
+  //     console.log('That email address is invalid!');
+  //   }
+
+  //   console.error(error);
+  // });
+
+  // };
+
   const onSignUpClick = async () => {
     const {name, email, password} = inputState;
     validateField('name', name, true);
@@ -103,33 +145,24 @@ const SignUpScreen = () => {
     ) {
       return;
     }
-      const app = getApp();
-      const auth = getAuth(app);
-      const userCred = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password,
-      ).then(() => {
-    console.log('User account created & signed in!');
-    console.log("user======>",userCred)
-       navigation.navigate("HomeScreen")
 
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { name }, 
+    },
   })
-  .catch(error => {
-    if (error.code === 'auth/email-already-in-use') {
-      console.log('That email address is already in use!');
-    }
+  if (error) {
+    console.error('Signup error:', error.message)
+  } else {
+    console.log('Signup success:', data)
+     navigation.navigate("HomeScreen")
+  }
 
-    if (error.code === 'auth/invalid-email') {
-      console.log('That email address is invalid!');
-    }
 
-    console.error(error);
-  });
 
   };
-
-
  
   const inputBoxUIView = () => {
     return (
