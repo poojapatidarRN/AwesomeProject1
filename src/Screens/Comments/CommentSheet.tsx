@@ -7,23 +7,28 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import Modal from "react-native-modal";
-import firestore, { FirebaseFirestoreTypes } from "@react-native-firebase/firestore";
+import firestore, {
+  FirebaseFirestoreTypes,
+} from "@react-native-firebase/firestore";
 import { getAuth } from "@react-native-firebase/auth";
-import {styles} from "./styles"
+import { styles } from "./styles";
+
 type CommentSheetProps = {
   visible: boolean;
   onClose: () => void;
   postId: string;
-  userName:string;
+  userName: string;
 };
 
 type Comment = {
   id: string;
-  userName:string;
+  userName: string;
   text: string;
   createdAt: FirebaseFirestoreTypes.Timestamp;
+  userId: string;
 };
 
 const CommentSheet: React.FC<CommentSheetProps> = ({
@@ -34,14 +39,13 @@ const CommentSheet: React.FC<CommentSheetProps> = ({
 }) => {
   const [commentText, setCommentText] = useState("");
   const [comments, setComments] = useState<Comment[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
+  const currentUser = getAuth().currentUser;
+
+  // 🔹 Realtime listener
   useEffect(() => {
     if (!postId) return;
-  getCommentsList()
-  }, [postId]);
-
-
- const getCommentsList=async()=>{
     const unsubscribe = firestore()
       .collection("posts")
       .doc(postId)
@@ -56,47 +60,102 @@ const CommentSheet: React.FC<CommentSheetProps> = ({
       });
 
     return () => unsubscribe();
- }
- const handleAddComment = async () => {
-  if (!commentText.trim()) return;
-  const currentUser = getAuth().currentUser;
-  if (!currentUser) return;
+  }, [postId]);
 
-  const newComment = {
-    userName: userName,
-    text: commentText.trim(),
-    createdAt: firestore.Timestamp.now(),
+  // 🔹 Add new comment
+  const handleAddComment = async () => {
+    if (!commentText.trim()) return;
+    if (!currentUser) return;
+
+    const newComment = {
+      userId: currentUser.uid,
+      userName: userName,
+      text: commentText.trim(),
+      createdAt: firestore.Timestamp.now(),
+    };
+
+    try {
+      // Optimistic UI
+      setComments(prev => [
+        { id: `temp-${Date.now()}`, ...newComment },
+        ...prev,
+      ]);
+
+      setCommentText("");
+
+      const postRef = firestore().collection("posts").doc(postId);
+      const batch = firestore().batch();
+      const newCommentRef = postRef.collection("comments").doc();
+
+      batch.set(newCommentRef, {
+        ...newComment,
+        createdAt: firestore.FieldValue.serverTimestamp(),
+      });
+
+      batch.update(postRef, {
+        comments: firestore.FieldValue.increment(1),
+      });
+
+      await batch.commit();
+    } catch (error) {
+      console.error("Error adding comment:", error);
+    }
   };
 
-  try {
-    // Optimistic UI update (shows instantly)
-    setComments(prev => [
-      { id: `temp-${Date.now()}`, ...newComment },
-      ...prev,
+  // 🔹 Delete comment
+  const handleDeleteComment = async (commentId: string) => {
+    if (!postId || !commentId) return;
+    Alert.alert("Delete Comment", "Are you sure you want to delete this comment?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const postRef = firestore().collection("posts").doc(postId);
+            const commentRef = postRef.collection("comments").doc(commentId);
+
+            const batch = firestore().batch();
+            batch.delete(commentRef);
+            batch.update(postRef, {
+              comments: firestore.FieldValue.increment(-1),
+            });
+
+            await batch.commit();
+          } catch (error) {
+            console.error("Error deleting comment:", error);
+          }
+        },
+      },
     ]);
+  };
 
-    setCommentText("");
+  // 🔹 Edit comment
+  const handleEditComment = (comment: Comment) => {
+    setEditingId(comment.id);
+    setCommentText(comment.text);
+  };
 
-    const postRef = firestore().collection("posts").doc(postId);
-    const batch = firestore().batch();
-    const newCommentRef = postRef.collection("comments").doc();
+  const handleUpdateComment = async () => {
+    if (!editingId || !commentText.trim()) return;
 
-    batch.set(newCommentRef, {
-      ...newComment,
-      createdAt: firestore.FieldValue.serverTimestamp(),
-    });
+    try {
+      const commentRef = firestore()
+        .collection("posts")
+        .doc(postId)
+        .collection("comments")
+        .doc(editingId);
 
-    batch.update(postRef, {
-      comments: firestore.FieldValue.increment(1),
-    });
+      await commentRef.update({
+        text: commentText.trim(),
+      });
 
-    await batch.commit();
-  } catch (error) {
-    console.error("Error adding comment:", error);
-  }
-};
-
-
+      setEditingId(null);
+      setCommentText("");
+    } catch (error) {
+      console.error("Error updating comment:", error);
+    }
+  };
 
   return (
     <Modal
@@ -117,11 +176,34 @@ const CommentSheet: React.FC<CommentSheetProps> = ({
           {/* Comments List */}
           <FlatList
             data={comments}
-            keyExtractor={(item) => item.id}
+            keyExtractor={item => item.id}
             renderItem={({ item }) => (
               <View style={styles.commentItem}>
-                <Text style={styles.commentUser}>{item.userName}</Text>
-                <Text style={styles.commentText}>{item.text}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.commentUser}>{item.userName}</Text>
+                  <Text style={styles.commentText}>{item.text}</Text>
+                </View>
+
+                {item.userId === currentUser?.uid && (
+                  <View style={{ flexDirection: "row" }}>
+                    <TouchableOpacity
+                      onPress={() => handleEditComment(item)}
+                      style={{ marginRight: 10 }}
+                    >
+                      <Text style={{ color: "#007AFF", fontWeight: "500" }}>
+                        Edit
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => handleDeleteComment(item.id)}
+                    >
+                      <Text style={{ color: "red", fontWeight: "500" }}>
+                        Delete
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             )}
             ListEmptyComponent={
@@ -133,13 +215,19 @@ const CommentSheet: React.FC<CommentSheetProps> = ({
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
-              placeholder="Add a comment..."
+              placeholder={
+                editingId ? "Edit your comment..." : "Add a comment..."
+              }
               placeholderTextColor="#888"
               value={commentText}
               onChangeText={setCommentText}
             />
-            <TouchableOpacity onPress={handleAddComment}>
-              <Text style={styles.sendText}>Send</Text>
+            <TouchableOpacity
+              onPress={editingId ? handleUpdateComment : handleAddComment}
+            >
+              <Text style={styles.sendText}>
+                {editingId ? "Update" : "Send"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
